@@ -15,7 +15,10 @@ UPDATE_S = 1
 
 # cells = np.zeros((HEIGHT, WIDTH), dtype=bool)
 img = Image.open("ic.jpg").resize((WIDTH, HEIGHT))
-cells = np.asarray(img)[:, :, 0] >= 128
+arr = np.asarray(img)
+reds = arr[:, :, 0] >= 128
+greens = arr[:, :, 1] >= 128
+blues = arr[:, :, 2] >= 128
 
 
 def update():
@@ -25,11 +28,12 @@ def update():
     rule_dead = np.zeros(8 + 1, np.uint8)  # default all to dead
     rule_dead[3] = 1  # dead switches to living <=> 3 neighbors
 
-    neighbors = sig.convolve2d(
-        cells, np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]]),
-        mode='same', boundary='wrap'
-    )
-    cells[:] = np.where(cells, rule_alive[neighbors], rule_dead[neighbors])
+    for cells in [reds, greens, blues]:
+        neighbors = sig.convolve2d(
+            cells, np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]]),
+            mode='same', boundary='wrap'
+        )
+        cells[:] = np.where(cells, rule_alive[neighbors], rule_dead[neighbors])
 
 
 def thread():
@@ -40,7 +44,6 @@ def thread():
 
 th = Thread(target=thread)
 th.start()
-
 
 app = Flask(__name__)
 app.jinja_env.undefined = StrictUndefined
@@ -54,8 +57,10 @@ def index_view():
 
 @app.route('/img')
 def cells_png_view():
+    stacked = np.where(np.dstack([reds, greens, blues]), 255, 0).astype(np.uint8)
     stream = BytesIO()
-    Image.fromarray(cells).save(stream, format='png')
+    img = Image.fromarray(stacked, mode='RGB')
+    img.save(stream, format='png')
     stream.seek(0)
     return Response(stream, mimetype='image/png')
 
@@ -65,7 +70,8 @@ def flip_cell_controller():
     x = request.json.get('x')
     y = request.json.get('y')
     # note reversed order
-    cells[y, x] = not cells[y, x]
+    for cells in [reds, greens, blues]:
+        cells[y, x] = not cells[y, x]
     return request.data
 
 
