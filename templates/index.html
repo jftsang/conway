@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en-gb">
+<head>
+    <title>Conway</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+</head>
+<body>
+<img id="cellsImg"
+     alt="conway"
+     ismap>
+
+<p id="responseP"></p>
+
+<script>
+    const cellsImg = document.getElementById("cellsImg");
+    const cellsImgUrl = "{{ url_for('cells_png_view') }}";
+    const responseP = document.getElementById("responseP");
+
+    function refreshImg() {
+        cellsImg.src = cellsImgUrl + '?' + new Date().getTime();
+    }
+
+    async function clickListener(evt) {
+        /* Naive solution (doesn't handle scaled images */
+        /*
+        const x = evt.pageX - this.offsetLeft;
+        const y = evt.pageY - this.offsetTop;
+        */
+
+        /* Better solution https://stackoverflow.com/a/58568016 */
+        const bounds = this.getBoundingClientRect();
+        const left = bounds.left;
+        const top = bounds.top;
+        const x = evt.pageX - left;
+        const y = evt.pageY - top;
+        const cw = this.clientWidth;
+        const ch = this.clientHeight;
+        const iw = this.naturalWidth;
+        const ih = this.naturalHeight;
+        const px=Math.floor(x/cw*iw);
+        const py=Math.floor(y/ch*ih);
+
+        const flipCellUrl = "{{ url_for('flip_cell_controller') }}";
+        const resp = await fetch(flipCellUrl, {
+            method: 'POST',
+            headers: {"Content-type": "application/json; charset=UTF-8"},
+            body: JSON.stringify({"x": px, "y": py})
+        })
+        responseP.innerText = await resp.text();
+        refreshImg();
+    }
+
+    refreshImg();
+    setInterval(refreshImg, {{ UPDATE_S }} * 1000);
+
+    cellsImg.addEventListener("click", clickListener);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,73 @@
+from io import BytesIO
+from threading import Thread
+from time import sleep
+
+import numpy as np
+import scipy.signal as sig
+from PIL import Image
+from flask import Flask, Response, render_template, request
+from jinja2 import StrictUndefined
+
+WIDTH = 640
+HEIGHT = 480
+SERVER_UPDATE_S = 1
+UPDATE_S = 1
+
+# cells = np.zeros((HEIGHT, WIDTH), dtype=bool)
+img = Image.open("ic.jpg").resize((WIDTH, HEIGHT))
+cells = np.asarray(img)[:, :, 0] >= 128
+
+
+def update():
+    # # index is number of neighbors alive
+    rule_alive = np.zeros(8 + 1, np.uint8)  # default all to dead
+    rule_alive[[2, 3]] = 1  # alive stays alive <=> 2 or 3 neighbors
+    rule_dead = np.zeros(8 + 1, np.uint8)  # default all to dead
+    rule_dead[3] = 1  # dead switches to living <=> 3 neighbors
+
+    neighbors = sig.convolve2d(
+        cells, np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]]),
+        mode='same', boundary='wrap'
+    )
+    cells[:] = np.where(cells, rule_alive[neighbors], rule_dead[neighbors])
+
+
+def thread():
+    while True:
+        sleep(SERVER_UPDATE_S)
+        update()
+
+
+th = Thread(target=thread)
+th.start()
+
+
+app = Flask(__name__)
+app.jinja_env.undefined = StrictUndefined
+app.jinja_env.globals['UPDATE_S'] = UPDATE_S
+
+
+@app.route('/')
+def index_view():
+    return render_template('index.html')
+
+
+@app.route('/img')
+def cells_png_view():
+    stream = BytesIO()
+    Image.fromarray(cells).save(stream, format='png')
+    stream.seek(0)
+    return Response(stream, mimetype='image/png')
+
+
+@app.route('/flip', methods=['POST'])
+def flip_cell_controller():
+    x = request.json.get('x')
+    y = request.json.get('y')
+    # note reversed order
+    cells[y, x] = not cells[y, x]
+    return request.data
+
+
+if __name__ == '__main__':
+    app.run()
