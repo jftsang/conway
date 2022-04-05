@@ -17,11 +17,14 @@
     const cellsImgUrl = "{{ url_for('cells_png_view') }}";
     const responseP = document.getElementById("responseP");
 
+    const gliderCreateUrl = "{{ url_for('glider_create_controller') }}";
+    const flipCellUrl = "{{ url_for('flip_cell_controller') }}";
+
     function refreshImg() {
         cellsImg.src = cellsImgUrl + '?' + new Date().getTime();
     }
 
-    async function clickListener(evt) {
+    function getClickLocation(evt, img) {
         /* Naive solution (doesn't handle scaled images */
         /*
         const x = evt.pageX - this.offsetLeft;
@@ -29,32 +32,50 @@
         */
 
         /* Better solution https://stackoverflow.com/a/58568016 */
-        const bounds = this.getBoundingClientRect();
+        const bounds = img.getBoundingClientRect();
         const left = bounds.left;
         const top = bounds.top;
         const x = evt.pageX - left;
         const y = evt.pageY - top;
-        const cw = this.clientWidth;
-        const ch = this.clientHeight;
-        const iw = this.naturalWidth;
-        const ih = this.naturalHeight;
+        const cw = img.clientWidth;
+        const ch = img.clientHeight;
+        const iw = img.naturalWidth;
+        const ih = img.naturalHeight;
         const px=Math.floor(x/cw*iw);
         const py=Math.floor(y/ch*ih);
+        return {"x": px, "y": py};
+    }
 
-        const flipCellUrl = "{{ url_for('flip_cell_controller') }}";
-        const resp = await fetch(flipCellUrl, {
+    async function clickListener(evt) {
+        const xy = getClickLocation(evt, this);
+        const resp = await fetch(gliderCreateUrl, {
             method: 'POST',
             headers: {"Content-type": "application/json; charset=UTF-8"},
-            body: JSON.stringify({"x": px, "y": py})
+            body: JSON.stringify(xy)
         })
         responseP.innerText = await resp.text();
         refreshImg();
+    }
+
+    async function rightClickListener(evt) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        const xy = getClickLocation(evt, this);
+        const resp = await fetch(flipCellUrl, {
+            method: 'POST',
+            headers: {"Content-type": "application/json; charset=UTF-8"},
+            body: JSON.stringify(xy)
+        })
+        responseP.innerText = await resp.text();
+        refreshImg();
+        return false;
     }
 
     refreshImg();
     setInterval(refreshImg, {{ UPDATE_S }} * 1000);
 
     cellsImg.addEventListener("click", clickListener);
+    cellsImg.addEventListener("contextmenu", rightClickListener);
 </script>
 
 </body>

@@ -8,9 +8,9 @@ from PIL import Image
 from flask import Flask, Response, render_template, request
 from jinja2 import StrictUndefined
 
-WIDTH = 640
-HEIGHT = 480
-SERVER_UPDATE_S = 1
+WIDTH = 600
+HEIGHT = 450
+SERVER_UPDATE_S = 0.1
 UPDATE_S = 1
 
 # cells = np.zeros((HEIGHT, WIDTH), dtype=bool)
@@ -72,6 +72,29 @@ def flip_cell_controller():
     # note reversed order
     for cells in [reds, greens, blues]:
         cells[y, x] = not cells[y, x]
+    return request.data
+
+
+@app.route('/glider', methods=['POST'])
+def glider_create_controller():
+    x = request.json.get('x')
+    y = request.json.get('y')
+    for cells in [reds, greens, blues]:
+        cells[y-1:y+4, x-1:x+4] = False
+        cells[y, x] = True
+        cells[y, x+2] = True
+        cells[y+1, x+1] = True
+        cells[y+1, x+2] = True
+        cells[y+2, x+1] = True
+
+        cells[y-1:y+4, x-1:x+4] = np.array([
+            [False, False, False, False, False],
+            [False, True, False, True, False],
+            [False, False, True, True, False],
+            [False, False, True, False, False],
+            [False, False, False, False, False],
+        ])
+
     return request.data
 
 

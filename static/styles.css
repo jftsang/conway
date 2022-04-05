@@ -1,5 +1,5 @@
 #cellsImg {
-    width: 1024px;
+    width: 1200px;
     /* https://stackoverflow.com/questions/29134237/make-images-larger-in-html-with-no-blur */
     image-rendering: pixelated;
 }
